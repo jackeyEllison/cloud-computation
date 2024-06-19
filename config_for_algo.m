@@ -1,10 +1,10 @@
 function cfg = config_for_algo(varargin)
     
     if nargin == 0   % 如果输入变量个数为0，说明是main_run_once.m调用了config()，只需要执行一遍程序
-%        cfg.fileName = "GLPSO";
-%        cfg.fileName = "GA"; 
-%        cfg.fileName = "GWO";
-         cfg.fileName = "LSAG";
+%            cfg.fileName = "SA";
+%           cfg.fileName = "GA3"; 
+          cfg.fileName = "GWO";
+%          cfg.fileName = "LSAG";
 
         %% Basic params
         cfg.M = 10;      % user number M 5
@@ -15,7 +15,7 @@ function cfg = config_for_algo(varargin)
     cfg.execMode = "train";
 
     cfg.numOfParticles  = 100;   %粒子数
-    cfg.totalIterations = 600; %一共的迭代次数
+    cfg.totalIterations = 1000; %一共的迭代次数
     cfg.amplify = 1;             %扩充
     
     if cfg.execMode == "train"

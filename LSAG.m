@@ -28,19 +28,36 @@ function [bestEverSolution, objList, energyList, penaltyList, stopIteration, tim
     fid = fopen('result.txt', 'wt');
    
     
+%     CPU = cfg.user.alpha;
+%     Memory = cfg.user.g;
+%     Csum = sum(CPU, 2);
+%     Msum = sum(Memory, 2);
+%     TotalR = [Csum Msum];
+%     [row, ~] = size(TotalR);
+%     nor = [];
+%     for i = 1:row
+%         nor = [nor; norm(TotalR(i,:))];
+%     end
+%     [SortTotal, index] = sort(nor);
+    
     CPU = cfg.user.alpha;
     Memory = cfg.user.g;
     Csum = sum(CPU, 2);
     Msum = sum(Memory, 2);
     TotalR = [Csum Msum];
-    [row, ~] = size(TotalR);
-    nor = [];
-    for i = 1:row
-        nor = [nor; norm(TotalR(i,:))];
-    end
+
+    % 均值-方差标准化
+    meanTotalR = mean(TotalR);
+    stdTotalR = std(TotalR);
+    nor = (TotalR - meanTotalR) ./ stdTotalR;
+
+%     % 或最大最小标准化
+%     minTotalR = min(TotalR);
+%     maxTotalR = max(TotalR);
+%     nor = (TotalR - minTotalR) ./ (maxTotalR - minTotalR);
+
     [SortTotal, index] = sort(nor);
-    
-    
+
    
     CPUSBSmax = [3*10^(10) 1*10^(10) 1.5*10^(10)];
     MemSBSmax = [2*1024*1024*1024*8 2.5*1024*1024*1024*8 1.5*1024*1024*1024*8];
@@ -56,34 +73,53 @@ function [bestEverSolution, objList, energyList, penaltyList, stopIteration, tim
     
     
     
-    % 改进点1
-    X1 = [1, 0, 0; 1, 0, 0; 0, 1, 0; 0, 1, 0; 0, 0, 1; 0, 0, 1];
+%     % 改进点1
+%     X1 = [1, 0, 0; 1, 0, 0; 0, 1, 0; 0, 1, 0; 0, 0, 1; 0, 0, 1];
+% 
+%     X7 = [0, 0, 0];
+%     X8 = [0, 0, 0];
+%     X9 = [0, 0, 0];
+%     X10 = [0, 0, 0];
+% 
+%     X7(indexSBS(1)) = 1;
+%     X8(indexSBS(2)) = 1;
+%     X9(indexSBS(3)) = 1;
+%     X10 = [0, 0, 1];
+% 
+%     X1 = [X1; X7];
+%     X1 = [X1; X8];
+%     X1 = [X1; X9];
+%     X1 = [X1; X10];
+    
+      % 初始化矩阵X1
+      X1 = [0, 0, 1; 1, 0, 0; 0, 1, 0; 0, 1, 0; 0, 0, 1; 0, 0, 1];
 
-    X7 = [0, 0, 0];
-    X8 = [0, 0, 0];
-    X9 = [0, 0, 0];
-    X10 = [0, 0, 0];
+      % 初始化X7, X8, X9, X10并进行赋值
+      X_temp = zeros(4, 3);
+      for i = 1:3
+          randomNumber = rand();
+          if  randomNumber < 0.5 
+               X_temp(i, indexSBS(1)) = 1;
+          elseif  0.5 <= randomNumber && randomNumber < 0.75
+               X_temp(i, indexSBS(2)) = 1;
+          else
+              X_temp(i, indexSBS(3)) = 1;
+          end         
+      end
+      X_temp(4, :) = [1, 0, 0];
 
-    X7(indexSBS(1)) = 1;
-    X8(indexSBS(2)) = 1;
-    X9(indexSBS(3)) = 1;
-    X10 = [0, 0, 1];
-
-    X1 = [X1; X7];
-    X1 = [X1; X8];
-    X1 = [X1; X9];
-    X1 = [X1; X10];
-
+      % 将X_temp中的行添加到X1
+      X1 = [X1; X_temp];
+    
+    
+    
     %首先对粒子群的所有粒子的属性向量转成矩阵便于计算，然后进行随机位置， 最后将属性矩阵变成属性向量
     for i = 1:numOfParticles
         [Pm, X, mu, FL, FE, lambda] = ...
             vector2matrix(M, K, J, Position(i, 1:numOfDimension));
-        
         [Pm, X, mu, FL, FE, lambda] = ...
             randPosition(M, K, J, Pm, X, mu, FL, FE, lambda, PmMax, FLMax, FEMax);
-
         X = X1;
-
         Position(i, 1:numOfDimension) = ...
             matrix2vextor(M, K, J, Pm, X, mu, FL, FE, lambda);
     end
@@ -155,8 +191,6 @@ function [bestEverSolution, objList, energyList, penaltyList, stopIteration, tim
 
         for i = 1:numOfParticles
             for d = 1:numOfDimension
-                
-                
                 r1 = rand();
                 r2 = rand();
 
@@ -201,26 +235,46 @@ function [bestEverSolution, objList, energyList, penaltyList, stopIteration, tim
         [newObj, oldEnergy, oldPenalty] = ...
             objFunction(cfg, pm, X, mu, FL, FE, lambda);
 
-        [pm, X, mu, FL, FE, lambda] = ...
-            vector2matrix(M, K, J, Position_old(1:numOfDimension));
-        [Pm, X, mu, FL, FE, lambda] = ...
-            checkBound(M, K, J, Pm, X, mu, FL, FE, lambda, PmMax, FLMax, FEMax);
-        Position(i, 1:numOfDimension) = ...
-            matrix2vextor(M, K, J, Pm, X, mu, FL, FE, lambda); 
-        [oldObj, oldEnergy, oldPenalty] = ...
-            objFunction(cfg, pm, X, mu, FL, FE, lambda);
+%         [pm, X, mu, FL, FE, lambda] = ...
+%             vector2matrix(M, K, J, Position_old(1:numOfDimension));
+%         [Pm, X, mu, FL, FE, lambda] = ...
+%             checkBound(M, K, J, Pm, X, mu, FL, FE, lambda, PmMax, FLMax, FEMax);
+%         Position(i, 1:numOfDimension) = ...
+%             matrix2vextor(M, K, J, Pm, X, mu, FL, FE, lambda); 
+%         [oldObj, oldEnergy, oldPenalty] = ...
+%             objFunction(cfg, pm, X, mu, FL, FE, lambda);
 
-        temperature = 100;
-        delta = oldObj - newObj; 
-        if delta > 0
-            % 现在的好
-        else
-            probability = exp(-delta / temperature);
-            randomNumber = rand();
-            if probability > randomNumber
-                Position(i, :) = Position_old;
-            end 
-        end
+%         temperature = 100;
+%         delta = oldObj - newObj; 
+%         if delta > 0
+%             % 现在的好
+%         else
+%             probability = exp(-delta / temperature);
+%             randomNumber = rand();
+%             if probability > randomNumber
+%                 Position(i, :) = Position_old;
+%             end 
+%         end
+          initialTemperature = 100;
+          coolingRate = 0.99;
+          temperature = initialTemperature;
+
+          for iteration = 1:totalIterations
+              delta = oldObj - newObj;
+              if (delta > 0)
+            % 接受新解
+              else
+                  probability = exp(-delta / temperature);
+                  randomNumber = rand();
+              if (probability > randomNumber)
+                  Position(i, :) = Position_old;
+              end
+            end
+        % 更新温度
+               temperature = temperature * coolingRate;
+           end
+
+
 
         best(iterationIndex, :) = [Alpha_score, Beta_score, Delta_score]; 
         
